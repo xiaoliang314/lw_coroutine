@@ -5,7 +5,7 @@ lw_coroutine
 用例：
 -----
 
-`
+```c
 #include "bp.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -98,7 +98,7 @@ int main()
 
     return 0;
 }
-`
+```
 
 lw_coroutine
 ============
@@ -107,7 +107,7 @@ pure C lightweight coroutines implemented using switch-goto support yield in swi
 usage：
 -------
 
-`
+```c
 #include "bp.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -200,4 +200,4 @@ int main()
 
     return 0;
 }
-`
+```
