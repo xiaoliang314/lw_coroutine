@@ -1,6 +1,6 @@
 lw_coroutine
 ============
-仅一个bp.h文件，它类似于protothread，但采用了完全不同的实现机制，它使用switch-goto实现，相比protothread有如下优势：
+仅一个bp.h文件，它类似于protothread，但采用了不同的实现机制，它使用switch-goto实现，相比protothread有如下优势：
 
 * 最低的资源占用，仅使用1字节进行状态保存
 * bp支持在switch中进行yield, 而protothread不支持(仅gcc编译器支持，但移植性差)
@@ -108,7 +108,7 @@ int main()
 
 lw_coroutine
 ============
-There is only one bp.h file, which is similar to protothread, but uses a completely different implementation mechanism. It is implemented using switch-goto and has the following advantages over protothread:
+There is only one bp.h file, which is similar to protothread, but uses a different implementation mechanism. It is implemented using switch-goto and has the following advantages over protothread:
 
 * Lowest resource usage, use only 1 byte for state preservation
 * bp supports yield in switch, but protothread does not support (only gcc compiler support, but poor portability)
