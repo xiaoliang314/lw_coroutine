@@ -14,6 +14,7 @@
  *
  * //use static variables or external data structures to save function breakpoints
  * static uint8_t bp = BP_INIT_VAL;
+ * static uint8_t *bpd = &bp;
  *
  * //intercept callback before bp_begin and check breakpoint status
  * if (bp == 1) //bp is currently at breakpoint 1
@@ -25,56 +26,30 @@
  *          return ;
  *      }
  * }
- *
- * //description of breakpoint number:
- * //the first parameter of bp_begin is the number of all breakpoints between bp_begin and bp_end,
- * //it is either a pure number or a macro that expands to a pure number.
- * //bp other functions, such as bp_yield, bp_yield_until, etc., 
- * //the breakpoint number is a continuous pure digital breakpoint number
- *
- * //parameter 1: the number of breakpoints that bp_begin contains
- * //(must be pure numbers, or the macro expands to pure numbers, not identifiers or expressions)
- * //parameter 2: a variable that holds the breakpoint
- * bp_begin(3, bp)
+ *
+ * //start a coroutine with two breakpoints
+ * bpd_begin(2)
  *
  * while (1)
  * {
  *      //set its own callback, trigger the next call
  *      timer_start(timer1, self_callback, 1000);
  *
- *      //active return, and restore the current position on the next call
- *      //parameter 1: breakpoint number (must be a pure number, or the macro expands to a pure number)
- *      //parameter 2: variables for recording breakpoints
- *      bp_yield(1, bp);
+ *      //active return, and restore the current position on the next callback
+ *      bpd_yield(1);
  *
- *      //timeout processing
+ *      //the timer arrives that turned on the led
  *      led_on();
  *
  *      //set its own callback, trigger the next call
  *      timer_start(timer2, self_callback, 1000);
  *
- *      //active return, and restore the current position on the next call
- *      //parameter 1: breakpoint number (must be a pure number, or the macro expands to a pure number)
- *      //parameter 2: variables for recording breakpoints
- *      bp_yield(2, bp);
+ *      //active return, and restore the current position on the next callback
+ *      bpd_yield(2);
  *
- *      //timeout processing
+ *      //the timer arrives that turned off the led
  *      led_off();
  *
- *      switch (op)
- *      {
- *      case 1:
- *      {
- *          //bp support switch statement internal blocking
- *          bp_yield(3, bp);
- *      }
- *      break;
- *
- *      default:
- *      {
- *      }
- *      break;
- *      }
  * }
  *
  * bp_end(bp);
@@ -88,6 +63,7 @@
  *
  * //使用静态变量或者外部数据结构保存函数的断点
  * static uint8_t bp = BP_INIT_VAL;
+ * static uint8_t *bpd = &bp;
  *
  * //在bp_begin之前可以拦截回调，并检查断点状态
  * if (bp == 1) //bp当前处于断点1
@@ -100,52 +76,28 @@
  *    }
  * }
  *
- * //断点号说明：
- * //bp_begin的第一个参数是bp_begin到bp_end之间所有的断点个数，为纯数字或展开为纯数字的宏
- * //bp的其他函数，如bp_yield，bp_yield_until等中的断点号为连续的纯数字断点号
- * 
- * //参数1：bp_begin包含的断点个数(必须为纯数字，或者宏展开为纯数字，不可为标识符或表达式)
- * //参数2：保存了断点的一个变量
- * bp_begin(3, bp)
+ * //开始包含2个断点的协程
+ * bpd_begin(2)
  *
  * while (1)
  * {
  *      //设置自身回调，触发下次调用
  *      timer_start(timer1, self_callback, 1000);
  *
- *      //主动返回，并在下次调用时恢复当前位置
- *      //参数1：断点号(必须为纯数字，或宏展开为纯数字)
- *      //参数2：用于记录断点号的变量
- *      bp_yield(1, bp);
+ *      //主动返回，并在下次回调时恢复当前位置
+ *      bpd_yield(1);
  *
- *      //到时处理
+ *      //定时器到达，打开LED
  *      led_on();
  *
  *      //设置自身回调，触发下次调用
  *      timer_start(timer2, self_callback, 1000);
  *
- *      //主动返回，并在下次调用时恢复当前位置
- *      //参数1：断点号(必须为纯数字，或宏展开为纯数字)
- *      //参数2：用于记录断点号的变量
- *      bp_yield(2, bp);
+ *      //主动返回，并在下次回调时恢复当前位置
+ *      bpd_yield(2);
  *
- *      //到时处理
+ *      //定时器到达，关闭LED
  *      led_off();
- *
- *      switch (op)
- *      {
- *      case 1:
- *      {
- *          //bp支持switch语句内部阻塞
- *          bp_yield(3, bp);
- *      }
- *      break;
- *
- *      default:
- *      {
- *      }
- *      break;
- *      }
  * }
  *
  * bp_end(bp);
@@ -472,38 +424,104 @@
  * 故使用__BP_CAT_宏 */
 #define __BP_CASEN(bp_nums) __BP_CAT_(__BP_CASE, bp_nums)
 
-/*************************************************************************
- * BP block begin
- * BP块开始
- *************************************************************************
- */
 
+/*********************************************************
+ *@brief: 
+ ***start a bp coroutine
+ *
+ *@contract: 
+ ***1. "bp_nums" must be a pure number, or a macro that is expanded to be a pure number
+ ***2. "bp_nums" indicates the number of breakpoints contained between bp_begin() and bp_end()
+ ***3. the breakpoint number between bp_begin() and bp_end() is continuous from 1 to n,
+ ***   and must not be missed or redundant.
+ *
+ *@parameter:
+ *[bp_nums]: indicates the number of breakpoints contained between bp_begin() and bp_end()
+ *[bp]: variable(1 byte) for recording the current breakpoint position, the life cycle is global
+ *********************************************************/
+/*********************************************************
+ *@简要：
+ ***开始一个bp协程
+ *
+ *@约定：
+ ***1、bp_nums必须是纯数字，或者展开后为纯数字的宏
+ ***2、bp_nums表示从bp_begin()到bp_end()之间包含的断点个数
+ ***3、bp_begin()到bp_end()之间的断点号从1到n连续，不可遗漏与多余
+ *
+ *@参数：
+ *[bp_nums]：表示bp_begin()到bp_end()之间包含的断点个数
+ *[bp]：用于记录当前断点位置的生命周期为全局的变量（一个字节）
+ **********************************************************/
 #define bp_begin(bp_nums, bp)   __BP_HEADER(bp) __BP_CASEN(bp_nums) __BP_TAIL
 
-/*************************************************************************
- * BP block end
- * BP块结束
- *************************************************************************
- */
 
+/*********************************************************
+ *@brief: 
+ ***together with bp_begin(), constitutes the scope of the coroutine
+ *
+ *@parameter:
+ *[bp]: variable(1 byte) for recording the current breakpoint position, the life cycle is global
+ *********************************************************/
+/*********************************************************
+ *@简要：
+ ***与bp_begin()组成协程的作用域
+ *
+ *@参数：
+ *[bp]：用于记录当前断点位置的生命周期为全局的变量（一个字节）
+ **********************************************************/
 #define bp_end(bp)  \
     do { BP_LABEL_END: (bp) = BP_INIT_VAL; } while (0)
 
-/*************************************************************************
- * BP set breakpoint
- * BP设置断点
- *************************************************************************
- */
 
+/************************************************************
+ *@brief:
+ ***record the breakpoint number in the bp variable
+ *
+ *@parameter:
+ *[bp_num]: recorded breakpoint number
+ *[bp]: variable(1 byte) for recording the current breakpoint position, the life cycle is global
+ *************************************************************/
+/************************************************************
+ *@简介：
+ ***将断点号记录在bp变量之中
+ *
+ *@参数：
+ *[bp_num]：记录的断点号
+ *[bp]：用于记录当前断点位置的生命周期为全局的变量（一个字节）
+ *************************************************************/
 #define bp_set(bp_num, bp)      ((bp) = (bp_num))
 
 
-/*************************************************************************
- * BP restore point
- * BP还原点
- *************************************************************************
- */
+/************************************************************
+ *@brief:
+ ***create a recovery location with a breakpoint of bp_num,
+ ***and bp_begin() will jump to the appropriate recovery location
+ ***based on the breakpoint number in the bp variable.
+ *
+ *@contract:
+ ***1. create a recovery location with a different bp_num each time
+ ***2. the breakpoint number between bp_begin() and bp_end() is continuous from 1 to n,
+ ***   and must not be missed or redundant.
+ ***3. "bp_nums" must be a pure number, or a macro that is expanded to be a pure number
+ * 
+ *@parameter:
+ *[bp_num]: corresponding breakpoint number
+ *************************************************************/
+/************************************************************
+ *@简介：
+ ***创建一个断点号为bp_num的恢复位置，bp_begin()会根据bp变量中的断点号
+ ***跳转到相应的恢复位置。
+ *
+ *@约定：
+ ***1、每次都使用不同的bp_num创建恢复位置
+ ***2、bp_begin()到bp_end()之间的断点号从1到n连续，不可遗漏与多余
+ ***3、bp_nums必须是纯数字，或者展开后为纯数字的宏
+ *
+ *@参数：
+ *[bp_num]：对应的断点号
+ *************************************************************/
 #define bp_restore_point(bp_num)        BP_LABEL_N(bp_num)
+
 
 /*************************************************************************
  * BP initialization
@@ -513,31 +531,40 @@
 #define BP_INIT_VAL     0
 #define bp_init(bp)     ((bp) = BP_INIT_VAL)
 
-/*************************************************************************
- * BP yield series
- * BP yield系列
- *************************************************************************
- */
 
-/* return and resume the current execution position
- * on the next call */
-/* 主动返回，并在下次调用恢复当前执行位置 */
-#define bp_yield(bp_num, bp)        \
-    do {                            \
-        bp_set(bp_num, bp);         \
-        return ;                    \
-        bp_restore_point(bp_num):;  \
-    } while (0)
+/*********************************************************
+ *@description: 
+ ***BP yield series
+ *
+ *@note:
+ ***the bp_yield family of functions consists of bp_set and bp_restore_point,
+ ***so you need to follow the usage contract of bp_restore_point.
+ ***as follows:
+ ***1. "bp_nums" must be a pure number, or a macro that is expanded to be a pure number
+ ***2. the breakpoint number between bp_begin() and bp_end() is continuous from 1 to n,
+ ***   and must not be missed or redundant.
+ *********************************************************
+ *@说明：
+ ***BP yield系列函数
+ *
+ *@注意：
+ ***bp_yield系列函数由bp_set与bp_restore_point组成，因此需要
+ ***遵守bp_restore_point的使用约定。
+ ***如下：
+ ***1、bp_nums必须是纯数字，或者展开后为纯数字的宏
+ ***2、bp_begin()到bp_end()之间的断点号从1到n连续，不可遗漏与多余
+ *********************************************************/
 
-/* return with a value and resume
- * the current execution position on the next call */
-/* 主动带值返回，并在下次调用恢复当前执行位置 */
-#define bp_yield_ret(bp_num, bp, val)   \
-    do {                                \
-        bp_set(bp_num, bp);             \
-        return (val);                   \
+/* Active return, followed by a statement or value, 
+ * and restore the current execution position in the next call */
+/* 主动返回，后面可以跟一条语句或值，并在下次调用恢复当前执行位置 */
+#define bp_yield(bp_num, bp)            \
+    if (0)                              \
+    {                                   \
         bp_restore_point(bp_num):;      \
-    } while (0)
+    }                                   \
+    else while (bp_set(bp_num, bp) || 1)\
+        return
 
 /* return when the condition not established and
  * continue to determine the condition at the next call */
