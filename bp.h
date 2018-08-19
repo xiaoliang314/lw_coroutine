@@ -699,8 +699,6 @@
 
 #define bpd_yield(bp_num)                           bp_yield(bp_num, (BP_DEFAULT))
 
-#define bpd_yield_ret(bp_num, val)                  bp_yield_ret(bp_num, (BP_DEFAULT), val)
-
 #define bpd_yield_until(bp_num, cond)               bp_yield_until(bp_num, (BP_DEFAULT), cond)
 
 #define bpd_yield_until_ret(bp_num, cond, val)      bp_yield_until_ret(bp_num, (BP_DEFAULT), cond, val)
