@@ -1,4 +1,4 @@
-/*
+﻿/*
  * Copyright (C) 2018 xiaoliang<1296283984@qq.com>.
  */
 
@@ -105,8 +105,8 @@
  ************************************************************************
  */
 
-#ifndef __LWES_BP_H__
-#define __LWES_BP_H__
+#ifndef __BP_H__
+#define __BP_H__
 
 /*************************************************************************
  * BP macro build
@@ -149,8 +149,7 @@
                                         goto BP_LABEL_END;                      \
                                     }                                           \
                                     BP_LABEL_START:;                            \
-                                } while (0);                                    \
-                                if (1)                                          \
+                                } while (0)                                     \
 
 /* the block part of the case statement for BP_BEGIN */
 /* BP_BEGIN的case语句块部分 */
@@ -489,7 +488,7 @@
  *[bp_num]：记录的断点号
  *[bp]：用于记录当前断点位置的生命周期为全局的变量（一个字节）
  *************************************************************/
-#define bp_set(bp_num, bp)      ((bp) = (bp_num))
+#define bp_set(bp_num, bp)  ((int)((bp) = (bp_num)))
 
 
 /************************************************************
@@ -563,61 +562,8 @@
     {                                   \
         bp_restore_point(bp_num):;      \
     }                                   \
-    else while (bp_set(bp_num, bp) || 1)\
+    else while (bp_set(bp_num, bp))     \
         return
-
-/* return when the condition not established and
- * continue to determine the condition at the next call */
-/* 当条件不满足时主动返回，
- * 并在下次调用继续判断条件 */
-#define bp_yield_until(bp_num, bp, cond)    \
-    do {                                    \
-        bp_set(bp_num, bp);                 \
-        bp_restore_point(bp_num):           \
-        if (!(cond))                        \
-        {                                   \
-            return ;                        \
-        }                                   \
-    } while (0)
-
-/* return a value when the condition not established and
- * continue to determine the condition at the next call */
-/* 当条件不满足时主动带值返回，并在下次调用继续判断条件 */
-#define bp_yield_until_ret(bp_num, bp, cond, val)   \
-    do {                                            \
-        bp_set(bp_num, bp);                         \
-        bp_restore_point(bp_num):                   \
-        if (!(cond))                                \
-        {                                           \
-            return (val);                           \
-        }                                           \
-    } while (0)
-
-/* return when the condition is established and
- * continue to determine the condition at the next call */
-/* 当条件满足时主动返回，并在下次调用继续判断条件 */
-#define bp_yield_while(bp_num, bp, cond)    \
-    do {                                    \
-        bp_set(bp_num, bp);                 \
-        bp_restore_point(bp_num):           \
-        if ((cond))                         \
-        {                                   \
-            return ;                        \
-        }                                   \
-    } while (0)
-
-/* return a value when the condition is established and
- * continue to determine the condition at the next call */
-/* 当条件满足时主动带值返回，并在下次调用继续判断条件 */
-#define bp_yield_while_ret(bp_num, bp, cond, val)   \
-    do {                                            \
-        bp_set(bp_num, bp);                         \
-        bp_restore_point(bp_num):                   \
-        if ((cond))                                 \
-        {                                           \
-            return (val);                           \
-        }                                           \
-    } while (0)
 
 /*************************************************************************
  * BP other series
@@ -638,14 +584,8 @@
 /* exit BP_BEGIN-BP_END statement block,
  * the next call will be re-executed */
 /* 退出BP_BEGIN-BP_END语句块，下次调用将重新执行 */
-#define bp_exit(bp)     \
-    do { (bp) = BP_INIT_VAL; return ;} while (0)
-
-/* with value exit BP_BEGIN-BP_END statement block,
- * the next call will be re-executed */
-/* 带值退出BP_BEGIN-BP_END语句块，下次调用将重新执行 */
-#define bp_exit_ret(bp, val)        \
-    do { (bp) = BP_INIT_VAL; return (val);} while (0)
+#define bp_exit(bp) \
+    while (((bp) = BP_INIT_VAL) || 1) return
 
 /* return directly without
  * modifying the breakpoint location */
@@ -657,12 +597,12 @@
  * omit bp parameter
  * usage：
  *
- *  unsigned char *bpd = &ctx->pd;
+ *  unsigned char *bpd = &ctx->bp;
  *
  *  bpd_begin(1)
- *  {
- *      bpd_yield(1);
- *  }
+ *
+ *  bpd_yield(1);
+ *
  *  bpd_end();
  *
  ************************************************************/
@@ -670,12 +610,12 @@
  * 定义一个bpd指针，可使用BPD系列宏，省略bp参数
  * 例：
  *
- *  unsigned char *bpd = &ctx->pd;
+ *  unsigned char *bpd = &ctx->bp;
  *
  *  bpd_begin(1)
- *  {
- *      bpd_yield(1);
- *  }
+ *
+ *  bpd_yield(1);
+ *
  *  bpd_end();
  *
  ************************************************************/
@@ -699,22 +639,12 @@
 
 #define bpd_yield(bp_num)                           bp_yield(bp_num, (BP_DEFAULT))
 
-#define bpd_yield_until(bp_num, cond)               bp_yield_until(bp_num, (BP_DEFAULT), cond)
-
-#define bpd_yield_until_ret(bp_num, cond, val)      bp_yield_until_ret(bp_num, (BP_DEFAULT), cond, val)
-
-#define bpd_yield_while(bp_num, cond)               bp_yield_while(bp_num, (BP_DEFAULT), cond)
-
-#define bpd_yield_while_ret(bp_num, cond, val)      bp_yield_while_ret(bp_num, (BP_DEFAULT), cond, val)
-
 #define bpd_break                                   bp_break
 
 #define bpd_continue                                bp_continue
 
 #define bpd_exit()                                  bp_exit((BP_DEFAULT))
 
-#define bpd_exit_ret(val)                           bp_exit_ret((BP_DEFAULT), val)
-
 #define bpd_ret                                     bp_ret
 
-#endif /* __LWES_BP_H__ */
+#endif /* __BP_H__ */
