@@ -18,7 +18,10 @@ typedef struct
     unsigned char producer_bp;
 } res_t;
 
-void consumer(res_t *res)
+#define TRUE    1
+#define FALSE   (!TRUE)
+
+int consumer(res_t *res)
 {
     /* bpd coroutine default breakpoint pointer */
     unsigned char *bpd = &res->consumer_bp;
@@ -29,21 +32,24 @@ void consumer(res_t *res)
     while (1)
     {
         /* wait number of resource > 0 */
-        bpd_yield_until(1, res->res > 0);
+        while (res->res <= 0)
+        {
+            bpd_yield(1) FALSE;
+        }
 
         /* consume */
         res->res--;
         printf("consume a resource, number of res:%d\n", res->res);
 
         /* wait next consume */
-        bpd_yield(2);
+        bpd_yield(2) TRUE;
     }
 
     /* coroutine end */
     bpd_end();
 }
 
-void producer(res_t *res)
+int producer(res_t *res)
 {
     /* bpd coroutine default breakpoint pointer */
     unsigned char *bpd = &res->producer_bp;
@@ -54,14 +60,17 @@ void producer(res_t *res)
     while (1)
     {
         /* wait number of resource < 30 */
-        bpd_yield_until(1, res->res < 30);
+        while (res->res >= 30)
+        {
+            bpd_yield(1) FALSE;
+        }
 
         /* produce */
         res->res++;
         printf("produce a resource, number of res:%d\n", res->res);
 
         /* wait next produce */
-        bpd_yield(2);
+        bpd_yield(2) TRUE;
     }
 
     /* coroutine end */
@@ -82,13 +91,15 @@ int main()
         nrand = rand() % 16;
         while (nrand--)
         {
-            consumer(&res);
+            if (consumer(&res) == FALSE)
+                break;
         }
 
         nrand = rand() % 16;
         while (nrand--)
         {
-            producer(&res);
+            if (producer(&res) == FALSE)
+                break;
         }
     }
 
