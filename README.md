@@ -116,6 +116,8 @@ int main()
     return 0;
 }
 ```
+示例动画：
+<img src="demo.gif" width="960" align="middle" />
 
 lw_coroutine
 ============
